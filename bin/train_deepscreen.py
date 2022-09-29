@@ -22,7 +22,7 @@ use_gpu = torch.cuda.is_available()
 
 
 
-project_file_path = "{}DEEPScreen".format(os.getcwd().split("DEEPScreen")[0])
+project_file_path = "{}/DEEPScreen".format(os.getcwd().split("DEEPScreen")[0])
 training_files_path = "{}/training_files".format(project_file_path)
 result_files_path = "{}/result_files".format(project_file_path)
 trained_models_path = "{}/trained_models".format(project_file_path)
