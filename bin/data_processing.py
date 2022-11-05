@@ -9,14 +9,13 @@ import subprocess
 import numpy as np
 import pandas as pd
 from operator import itemgetter
-from torch.utils.data import Dataset
 from torch.utils.data.sampler import SubsetRandomSampler, BatchSampler, SequentialSampler
-"""
+from torch.utils.data import Dataset
 from rdkit import Chem
 from rdkit.Chem import Draw
-from rdkit.Chem.Draw import DrawingOptions
+from rdkit.Chem.Draw.MolDrawing import DrawingOptions
 import cairosvg
-"""
+
 
 
 warnings.filterwarnings(action='ignore')
