@@ -19,7 +19,7 @@ RANDOM_STATE = 123
 
 def get_device():
     if torch.cuda.is_available():
-        return 'gpu'
+        return 'cuda'
     else:
         return 'cpu'
 
@@ -194,7 +194,55 @@ def predict(target_id:str,trained_model_path:str, df_to_predict, fully_layer_1, 
     return prediction
 
 def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_files_path:str, fully_layer_1, fully_layer_2, learning_rate, batch_size, drop_rate, n_epoch, experiment_name, train_split_mode = 'train_random_split',  model_name = 'CNNModel1'):
+    '''
+    Trains a DeepScreen model given a dataframe with the following columns:
+
+        comp_id: ChEMBL chemical compounds id
+
+        smiles: Respective smiles notation of each compound
+
+        ChEMBL protein bioassay: The result of the bioassay given as 1 (active) and 0 (inactive)
+            THIS COLUMN NAME SHOULD BE THE PROTEIN ID IN CHEMBL
+
+        e.g.
+        ------------------------------------------------------------------------------
+                 comp_id  CHEMBL286                                             smiles
+        0  CHEMBL1644461          1  CC(C)[C@H](C[C@H](O)[C@H](COCc1ccccc1)NC(=O)c1...
+        1   CHEMBL339114          1  CC(C)(C)OC(=O)NC(Cc1ccccc1)C(=O)N[C@H]1CCC(=O)...
+        2  CHEMBL3401538          1  COCCCOc1cc(C(=O)N(C[C@@H]2CNC[C@H]2NS(=O)(=O)c...
+        3  CHEMBL1825183          1  Cc1c(F)cccc1Cc1c(C(=O)N2CCNCC2)c2ccncc2n1-c1cc...
+        4   CHEMBL584509          0  NC1=N[C@@](c2ccc(OC(F)(F)F)cc2)(c2cccc(-c3cccn...
+                     ...        ...                                                ... 
+        ------------------------------------------------------------------------------
     
+    ARGUMENTS:
+
+        training_df: pandas dataframe explained adobe
+
+        target_id: ChEMBL ID of the protein (the same as the column)
+
+        result_files_path: Where the .pth file with the train model will be saved
+
+        tmp_files_path: Where images of the compounds will be saved. You may use a tmp directory created with tmpfile module
+
+        neural network parameters:
+            fully_layer_1, fully_layer_2, learning_rate, batch_size, drop_rate, n_epoch
+
+        experiment_name: a name assigned to the experiment. The output file will be named after this name
+        
+        train_split_mode: Ways of splitting data for training. 
+            Currently only 'train_random_split'
+        
+        model_name: model architecture to use, found in models.py module
+            Currently  only 'CNNModel1'
+    
+
+    RETURN:
+        Returns exactly the path of the trained matrix in .pth file
+    '''
+
+
+
     arguments = [str(argm) for argm in
                  [target_id, model_name, fully_layer_1, fully_layer_2, learning_rate, batch_size, drop_rate, n_epoch, experiment_name]]
     str_arguments = "-".join(arguments)
@@ -215,6 +263,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
     model = None
     if model_name == "CNNModel1":
         model = CNNModel1(fully_layer_1, fully_layer_2, drop_rate).to(device)
+        logger.debug(f'CNNM model imported {type(model)}')
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     criterion = nn.CrossEntropyLoss()
     optimizer.zero_grad()
@@ -223,15 +272,16 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
     best_val_test_performance_dict = dict()
     best_val_test_performance_dict["MCC"] = 0.0
 
+    logger.info('starting training')
     for epoch in range(n_epoch):
         total_training_count = 0
         total_training_loss = 0.0
-        print("Epoch :{}".format(epoch))
+        logger.debug("Epoch :{}".format(epoch))
         model.train()
         batch_number = 0
         all_training_labels = []
         all_training_preds = []
-        print("Training mode:", model.training)
+        logger.debug("Training mode:", model.training)
         for i, data in enumerate(train_loader):
             batch_number += 1
             # print(batch_number)
@@ -250,7 +300,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
             total_training_loss += float(loss.item())
             loss.backward()
             optimizer.step()
-        print("Epoch {} training loss:".format(epoch), total_training_loss)
+        logger.debug("Epoch {} training loss:".format(epoch), total_training_loss)
         training_perf_dict = dict()
         try:
             training_perf_dict = prec_rec_f1_acc_mcc(all_training_labels, all_training_preds)
@@ -259,7 +309,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
         # print(training_perf_dict)
         model.eval()
         with torch.no_grad():  # torch.set_grad_enabled(False):
-            print("Validation mode:", not model.training)
+            logger.debug("Validation mode:", not model.training)
 
             total_val_loss, total_val_count, all_val_comp_ids, all_val_labels, val_predictions = calculate_val_test_loss(model, criterion, valid_loader, device)
             
@@ -268,7 +318,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
             try:
                 val_perf_dict = prec_rec_f1_acc_mcc(all_val_labels, val_predictions)
             except:
-                print("There was a problem during validation performance calculation!")
+                logger.error("There was a problem during validation performance calculation!")
             
 
             total_test_loss, total_test_count, all_test_comp_ids, all_test_labels, test_predictions = calculate_val_test_loss(
@@ -279,7 +329,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
             try:
                 test_perf_dict = prec_rec_f1_acc_mcc(all_test_labels, test_predictions)
             except:
-                print("There was a problem during test performance calculation!")
+                logger.error("There was a problem during test performance calculation!")
 
             if val_perf_dict["MCC"] > best_val_mcc_score:
                 best_val_mcc_score = val_perf_dict["MCC"]
