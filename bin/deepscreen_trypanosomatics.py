@@ -136,13 +136,17 @@ def save_best_model_predictions(output_trained_model_path, experiment_name, epoc
     best_test_predictions = str_test_predictions
     return validation_scores_dict, best_test_performance_dict, best_test_predictions, str_test_predictions, output_file
 
-def dataloaders_generator(path_tmp_files:str, df_compid_smiles_bioactivity:pd.DataFrame, loader_type:str, bioactivity_label_column, train_batch_size=32, )->torch.utils.data.DataLoader:
+def dataloaders_generator(path_tmp_files:str, df_compid_smiles_bioactivity:pd.DataFrame, loader_type:str, bioactivity_label_column = None, train_batch_size=32, )->torch.utils.data.DataLoader:
     if loader_type == 'predict':
         logger.debug('dataloaders generator predict launched')
         dataset = DEEPScreenDatasetPredict(path_tmp_files, df_compid_smiles_bioactivity)
         return torch.utils.data.DataLoader(dataset)
-    
+
     elif loader_type == 'train_random_split':
+        if bioactivity_label_column == None:
+            logger.error('bioactivity_label_column not suministrated')
+            raise RuntimeError('bioactivity_label_column not suministrated')
+
         logger.debug('dataloaders generator train_random_split launched')
         train, validate, test = np.split(df_compid_smiles_bioactivity.sample(frac=1, random_state=RANDOM_STATE), [int(.6*len(df_compid_smiles_bioactivity)), int(.8*len(df_compid_smiles_bioactivity))])
         logger.debug('datasets splited')
@@ -168,14 +172,15 @@ def dataloaders_generator(path_tmp_files:str, df_compid_smiles_bioactivity:pd.Da
         logger.error(f"Wrong data split mode")
         raise RuntimeError(f"'{loader_type}' is not a data split mode available, try 'train_random_split'")
 
-def predict(target_id:str,trained_model_path:str, df_to_predict, fully_layer_1, fully_layer_2, drop_rate )->pd.Series:
+def predict(target_id:str,trained_model_path:str, df_to_predict, pth_tmp_files:str, fully_layer_1, fully_layer_2, drop_rate )->pd.Series:
     '''
-    given a trained model in .pth from (path), and a path to a folder with molecules to predict, this function will return a dictionary with compounds ID as keys and 0/1 according to its prediction.
+    given a trained model in .pth from (path), and a path to a folder with molecules to predict, this function will return a pd.Series with compounds ID as keys and 0/1 according to its prediction.
+    
     '''
 
     device = get_device()
 
-    data_loader = dataloaders_generator(df_to_predict,loader_type='predict')
+    data_loader = dataloaders_generator(pth_tmp_files,df_to_predict,loader_type='predict')
 
     # loading model
     model = CNNModel1(fully_layer_1, fully_layer_2, drop_rate).to()
