@@ -122,7 +122,7 @@ def save_best_model_predictions(output_trained_model_path, experiment_name, epoc
     if not os.path.exists(os.path.join(output_trained_model_path, experiment_name)):
         os.makedirs(os.path.join(output_trained_model_path, experiment_name))
 
-    output_file = "{}/{}/{}_best_val-{}-state_dict.pth".format(output_trained_model_path, experiment_name,
+    output_file = "{}/{}_best_val-{}-state_dict.pth".format(output_trained_model_path,
                                                                                target_id, str_arguments)
     torch.save(model.state_dict(),output_file)
                
@@ -136,7 +136,7 @@ def save_best_model_predictions(output_trained_model_path, experiment_name, epoc
     best_test_predictions = str_test_predictions
     return validation_scores_dict, best_test_performance_dict, best_test_predictions, str_test_predictions, output_file
 
-def dataloaders_generator(path_tmp_files:str, df_compid_smiles_bioactivity:pd.DataFrame, loader_type:str, bioactivity_label_column = None, train_batch_size=32, )->torch.utils.data.DataLoader:
+def dataloaders_generator(path_tmp_files:str, df_compid_smiles_bioactivity:pd.DataFrame, loader_type:str, bioactivity_label_column = None, train_batch_size=32)->torch.utils.data.DataLoader:
     if loader_type == 'predict':
         logger.debug('dataloaders generator predict launched')
         dataset = DEEPScreenDatasetPredict(path_tmp_files, df_compid_smiles_bioactivity)
