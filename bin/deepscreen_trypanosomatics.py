@@ -36,7 +36,7 @@ class DEEPScreenDatasetTrain(Dataset):
 
             # creating molecules images -> path will be stored in 'img_molecule' column
             self.df['img_molecule'] = self.df.apply(lambda x: self.smiles_to_img_png(x[compound_id_column],x[smiles_column],self.path_imgs),axis=1)
-            logger.debug('Dataset created')
+            logger.debug(f'Dataset created in {path_tmp_files}')
 
     def __len__(self):
         return len(self.df.index)
@@ -86,7 +86,7 @@ class DEEPScreenDatasetPredict(Dataset):
 
             # creating molecules images -> path will be stored in 'img_molecule' column
             self.df['img_molecule'] = self.df.apply(lambda x: self.smiles_to_img_png(x[compound_id_column],x[smiles_column],self.path_imgs),axis=1)
-            logger.debug('Dataset created')
+            logger.debug(f'Dataset created in {path_tmp_files}')
 
     def __len__(self):
         return len(self.df.index)
@@ -251,7 +251,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
     arguments = [str(argm) for argm in
                  [target_id, model_name, fully_layer_1, fully_layer_2, learning_rate, batch_size, drop_rate, n_epoch, experiment_name]]
     str_arguments = "-".join(arguments)
-    logger.debug(f"Training:{str_arguments}")
+    logger.info(f"Training:{str_arguments}")
 
     device = get_device()
     exp_path = os.path.join(result_files_path, "experiments", experiment_name)
@@ -286,7 +286,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
         batch_number = 0
         all_training_labels = []
         all_training_preds = []
-        logger.debug("Training mode:", model.training)
+        logger.debug(f"Training mode:{model.training}")
         for i, data in enumerate(train_loader):
             batch_number += 1
             # print(batch_number)
@@ -305,7 +305,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
             total_training_loss += float(loss.item())
             loss.backward()
             optimizer.step()
-        logger.debug("Epoch {} training loss:".format(epoch), total_training_loss)
+        logger.debug(f"Epoch {epoch} training loss: {total_training_loss}")
         training_perf_dict = dict()
         try:
             training_perf_dict = prec_rec_f1_acc_mcc(all_training_labels, all_training_preds)
@@ -314,7 +314,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
         # print(training_perf_dict)
         model.eval()
         with torch.no_grad():  # torch.set_grad_enabled(False):
-            logger.debug("Validation mode:", not model.training)
+            logger.debug(f"Validation mode:{not model.training}")
 
             total_val_loss, total_val_count, all_val_comp_ids, all_val_labels, val_predictions = calculate_val_test_loss(model, criterion, valid_loader, device)
             
@@ -340,7 +340,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
                 best_val_mcc_score = val_perf_dict["MCC"]
                 best_test_mcc_score = test_perf_dict["MCC"]
 
-                validation_scores_dict, best_test_performance_dict, best_test_predictions, str_test_predictions, output_pth_file = save_best_model_predictions(exp_path,
+                validation_scores_dict, best_test_performance_dict, best_test_predictions, str_test_predictions, output_pth_file = save_best_model_predictions(os.path.join(result_files_path, "experiments"),
                     experiment_name, epoch, val_perf_dict, test_perf_dict,
                     model, target_id, str_arguments,
                     all_test_comp_ids, all_test_labels, test_predictions)

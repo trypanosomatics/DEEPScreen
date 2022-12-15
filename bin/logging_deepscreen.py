@@ -1,8 +1,18 @@
 import logging
 import datetime
 
+import os
 
-logging.basicConfig(filename = f'/home/sebastian-wsl/DEEPScreen/bin/log/{datetime.datetime.now()}.log',
+
+import os
+path = "./log"
+# Check whether the specified path exists or not
+isExist = os.path.exists(path)
+if not isExist:
+   # Create a new directory because it does not exist
+   os.makedirs(path)
+
+logging.basicConfig(filename = f'../log/{datetime.datetime.now()}.log',
                     level = logging.DEBUG,
                     format = '%(asctime)s:%(levelname)s: %(message)s')
  

@@ -14,7 +14,7 @@ from torch.utils.data import Dataset
 from rdkit import Chem
 from rdkit.Chem import Draw
 from rdkit.Chem.Draw.MolDrawing import DrawingOptions
-import cairosvg
+#import cairosvg
 
 
 
