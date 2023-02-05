@@ -1,0 +1,64 @@
+attrs==21.4.0
+backcall @ file:///home/ktietz/src/ci/backcall_1611930011877/work
+cairocffi==1.4.0
+CairoSVG==2.4.2
+certifi @ file:///croot/certifi_1665076670883/work/certifi
+cffi==1.15.1
+charset-normalizer==2.1.1
+chembl-webresource-client==0.10.8
+cssselect2==0.7.0
+cycler==0.11.0
+debugpy @ file:///tmp/build/80754af9/debugpy_1637091426235/work
+decorator @ file:///opt/conda/conda-bld/decorator_1643638310831/work
+defusedxml==0.7.1
+easydict==1.10
+entrypoints @ file:///tmp/build/80754af9/entrypoints_1649908585034/work
+fonttools==4.38.0
+future==0.18.2
+idna==3.4
+ipykernel @ file:///opt/conda/conda-bld/ipykernel_1662361798230/work
+ipython @ file:///tmp/abs_94gruux8u8/croots/recipe/ipython_1659529858706/work
+itsdangerous==2.1.2
+jedi @ file:///tmp/build/80754af9/jedi_1644299024593/work
+joblib==1.2.0
+jupyter_client @ file:///opt/conda/conda-bld/jupyter_client_1662504365333/work
+jupyter_core @ file:///opt/conda/conda-bld/jupyter_core_1664917302524/work
+kiwisolver==1.4.4
+matplotlib==3.5.3
+matplotlib-inline @ file:///opt/conda/conda-bld/matplotlib-inline_1662014470464/work
+nest-asyncio @ file:///tmp/build/80754af9/nest-asyncio_1649847911453/work
+numpy==1.21.6
+opencv-python==4.2.0.34
+packaging @ file:///tmp/build/80754af9/packaging_1637314298585/work
+pandas==1.0.4
+parso @ file:///opt/conda/conda-bld/parso_1641458642106/work
+pexpect @ file:///tmp/build/80754af9/pexpect_1605563209008/work
+pickleshare @ file:///tmp/build/80754af9/pickleshare_1606932040724/work
+Pillow==9.2.0
+prompt-toolkit @ file:///tmp/build/80754af9/prompt-toolkit_1633440160888/work
+psutil @ file:///opt/conda/conda-bld/psutil_1656431268089/work
+ptyprocess @ file:///tmp/build/80754af9/ptyprocess_1609355006118/work/dist/ptyprocess-0.7.0-py2.py3-none-any.whl
+pycparser==2.21
+Pygments @ file:///opt/conda/conda-bld/pygments_1644249106324/work
+pyparsing @ file:///opt/conda/conda-bld/pyparsing_1661452539315/work
+python-dateutil @ file:///tmp/build/80754af9/python-dateutil_1626374649649/work
+pytz==2022.4
+PyYAML==6.0
+pyzmq @ file:///opt/conda/conda-bld/pyzmq_1657724186960/work
+rdkit==2022.9.1
+requests==2.28.1
+requests-cache==0.7.5
+scikit-learn==0.23.1
+scipy==1.5.0rc2
+six @ file:///tmp/build/80754af9/six_1644875935023/work
+sklearn==0.0.post1
+threadpoolctl==3.1.0
+tinycss2==1.1.1
+torch==1.5.0
+tornado @ file:///opt/conda/conda-bld/tornado_1662061693373/work
+traitlets @ file:///tmp/build/80754af9/traitlets_1636710298902/work
+typing_extensions==4.4.0
+url-normalize==1.4.3
+urllib3==1.26.12
+wcwidth @ file:///Users/ktietz/demo/mc3/conda-bld/wcwidth_1629357192024/work
+webencodings==0.5.1
