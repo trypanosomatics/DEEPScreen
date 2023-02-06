@@ -354,6 +354,6 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
             best_val_test_result_fl.close()
             best_val_test_prediction_fl.close()
         
-    return output_pth_file
+    return output_pth_file, best_test_performance_dict
 
 
