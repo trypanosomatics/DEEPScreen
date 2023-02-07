@@ -12,7 +12,7 @@ if not isExist:
    # Create a new directory because it does not exist
    os.makedirs(path)
 
-logging.basicConfig(filename = f'../log/{datetime.datetime.now()}.log',
+logging.basicConfig(filename = f'./log/{datetime.datetime.now()}.log',
                     level = logging.DEBUG,
                     format = '%(asctime)s:%(levelname)s: %(message)s')
  
