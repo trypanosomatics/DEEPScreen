@@ -15,7 +15,7 @@ if not isExist:
 logging.basicConfig(filename = f'./log/{datetime.datetime.now()}.log',
                     level = logging.DEBUG,
                     format = '%(asctime)s:%(levelname)s: %(message)s',
-                    force=True)
+)
  
 
 handler = logging.StreamHandler()
