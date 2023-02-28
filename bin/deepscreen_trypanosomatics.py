@@ -19,8 +19,10 @@ RANDOM_STATE = 123
 
 def get_device():
     if torch.cuda.is_available():
+        logger.debug('Using gpu for training')
         return 'cuda'
     else:
+        logger.warning('using cpu for training')
         return 'cpu'
 
 class DEEPScreenDatasetTrain(Dataset):
