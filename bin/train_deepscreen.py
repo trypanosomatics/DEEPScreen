@@ -20,8 +20,6 @@ np.random.seed(123)
 use_gpu = torch.cuda.is_available()
 
 
-
-
 project_file_path = "{}/DEEPScreen".format(os.getcwd().split("DEEPScreen")[0])
 training_files_path = "{}/training_files".format(project_file_path)
 result_files_path = "{}/result_files".format(project_file_path)
@@ -98,7 +96,7 @@ def train_validation_test_training(target_id, model_name, fully_layer_1, fully_l
         "{}/best_val_test_performance_results-{}.txt".format(exp_path,str_arguments), "w")
     best_val_test_prediction_fl = open(
         "{}/best_val_test_predictions-{}.txt".format(exp_path,str_arguments), "w")
-
+ 
     train_loader, valid_loader, test_loader = get_train_test_val_data_loaders(target_id, batch_size)
     model = None
     if model_name == "CNNModel1":
@@ -141,9 +139,9 @@ def train_validation_test_training(target_id, model_name, fully_layer_1, fully_l
         print("Epoch {} training loss:".format(epoch), total_training_loss)
         training_perf_dict = dict()
         try:
-        	training_perf_dict = prec_rec_f1_acc_mcc(all_training_labels, all_training_preds)
+            training_perf_dict = prec_rec_f1_acc_mcc(all_training_labels, all_training_preds)
         except:
-        	print("There was a problem during training performance calculation!")
+            print("There was a problem during training performance calculation!")
         # print(training_perf_dict)
         model.eval()
         with torch.no_grad():  # torch.set_grad_enabled(False):
