@@ -280,6 +280,8 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
     best_val_test_performance_dict = dict()
     best_val_test_performance_dict["MCC"] = 0.0
 
+    loss_vs_epoch = pd.DataFrame(columns=['epoch','loss'])
+
     logger.info('starting training')
     for epoch in range(n_epoch):
         total_training_count = 0
@@ -309,6 +311,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
             loss.backward()
             optimizer.step()
         logger.debug(f"Epoch {epoch} training loss: {total_training_loss}")
+        loss_vs_epoch.loc[epoch] = (epoch,total_training_loss)
         training_perf_dict = dict()
         try:
             training_perf_dict = prec_rec_f1_acc_mcc(all_training_labels, all_training_preds)
@@ -357,7 +360,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
             best_val_test_result_fl.close()
             best_val_test_prediction_fl.close()
         
-    return output_pth_file, best_test_performance_dict
+    return output_pth_file, best_test_performance_dict, loss_vs_epoch
 
 class deepscreen_db:
     def __init__(self,db_path:str):
@@ -517,7 +520,7 @@ class trainer:
             self._config_nn['n_epoch'] = n_epoch
             logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
 
-    def train(self, result_path:str, tmp_imgs:bool=False):
+    def train(self, result_path:str, tmp_imgs:bool=False, plot_epoch_loss:bool = False):
 
         targets = self._get_target_list(self.df)
 
@@ -535,7 +538,7 @@ class trainer:
                     config_nn = self.get_config_nn()
                     df_training = self.df[['comp_id',target,'smiles']]
                     df_training = df_training.dropna(how='any')
-                    training_matrix_path, test_values = train(df_training,target,result_path,images,experiment_name=target,train_split_mode='train_random_split',model_name='CNNModel1',**config_nn)
+                    training_matrix_path, test_values, epoch_vs_loss = train(df_training,target,result_path,images,experiment_name=target,train_split_mode='train_random_split',model_name='CNNModel1',**config_nn)
                     self.logger.debug(f'Matrix stored in {training_matrix_path}; Results values {test_values}')
                     self.db.add_trained_model(target,training_matrix_path,test_values)
 
@@ -546,9 +549,14 @@ class trainer:
                 config_nn = self.get_config_nn()
                 df_training = self.df[['comp_id',target,'smiles']]
                 df_training = df_training.dropna(how='any')
-                training_matrix_path, test_values = train(df_training,target,result_path,images,experiment_name=target,train_split_mode='train_random_split',model_name='CNNModel1',**config_nn)
+                training_matrix_path, test_values, epoch_vs_loss = train(df_training,target,result_path,images,experiment_name=target,train_split_mode='train_random_split',model_name='CNNModel1',**config_nn)
                 self.logger.debug(f'Matrix stored in {training_matrix_path}; Results values {test_values}')
                 self.db.add_trained_model(target,training_matrix_path,test_values)
+            
+            if plot_epoch_loss:
+                epoch_vs_loss.plot(kind='line',x='epoch',y='loss')
+
+
         
         self.logger.debug(f'Training of {targets} succeded')
         return True
