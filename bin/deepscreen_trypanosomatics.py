@@ -7,7 +7,7 @@ import torch.nn as nn
 from models import CNNModel1
 from torch.utils.data import Dataset
 from torch.utils.data.sampler import SubsetRandomSampler
-from logging_deepscreen import logger
+import logging_deepscreen
 import logging
 from rdkit import Chem
 from rdkit.Chem import Draw
@@ -17,6 +17,8 @@ from train_deepscreen import calculate_val_test_loss
 from evaluation_metrics import prec_rec_f1_acc_mcc, get_list_of_scores
 
 RANDOM_STATE = 123
+logger = logging.getLogger('general')
+
 
 def get_device():
     if torch.cuda.is_available():
@@ -474,7 +476,6 @@ class trainer:
     def __init__(self, df, db_path:str):
         self.logger = logging.getLogger('general')
 
-
         self.df = self._check_correct_df(df)
 
         self._config_nn = {
@@ -526,14 +527,14 @@ class trainer:
 
         for target in targets:
             if target in self.db.get_trained_models():
-                logger.info(f'{target} target skipped because it was allready processed')
+                self.logger.info(f'{target} target skipped because it was allready processed')
                 continue
 
             if tmp_imgs:
                 import tempfile
                 with tempfile.TemporaryDirectory(prefix=f'{target}_') as tmpdirname:
-                    logger.debug(f'training {target}')
-                    logger.debug(f'tmp images mode on. imgs temporaly stored in {tmpdirname}')
+                    self.logger.debug(f'training {target}')
+                    self.logger.debug(f'tmp images mode on. imgs temporaly stored in {tmpdirname}')
                     images = tmpdirname
                     config_nn = self.get_config_nn()
                     df_training = self.df[['comp_id',target,'smiles']]
@@ -543,9 +544,9 @@ class trainer:
                     self.db.add_trained_model(target,training_matrix_path,test_values)
 
             else:    
-                logger.debug(f'training {target}')
+                self.logger.debug(f'training {target}')
                 images = result_path+f'/imgs_{target}/'
-                logger.debug(f'molecules imgs stored in {images}')
+                self.logger.debug(f'molecules imgs stored in {images}')
                 config_nn = self.get_config_nn()
                 df_training = self.df[['comp_id',target,'smiles']]
                 df_training = df_training.dropna(how='any')
@@ -555,7 +556,6 @@ class trainer:
             
             if plot_epoch_loss:
                 epoch_vs_loss.plot(kind='line',x='epoch',y='loss')
-
 
         
         self.logger.debug(f'Training of {targets} succeded')
