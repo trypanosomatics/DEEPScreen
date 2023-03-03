@@ -26,7 +26,8 @@ LIMIT 10
 
 
 
-SELECT act.molregno, md.chembl_id AS compund_chembl_id,
+SELECT act.molregno, 
+        md.chembl_id AS compund_chembl_id,
         trgd.chembl_id AS target_chemb_id,
         act.standard_relation,
         act.standard_value AS bioactivity,
@@ -48,3 +49,10 @@ WHERE (trgd.target_type = 'SINGLE PROTEIN')
     AND (act.standard_type IN ('IC50','EC50','AC50','Ki','Kd','Potency'))
     AND (act.pchembl_value IS NOT NULL)
 ;
+
+-- query para las smiles
+
+SELECT md.chembl_id, cmpstc.canonical_smiles
+FROM compound_structures AS cmpstc 
+JOIN molecule_dictionary AS md ON md.molregno = cmpstc.molregno
+LIMIT 10;
