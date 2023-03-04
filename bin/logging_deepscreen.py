@@ -9,15 +9,20 @@ if not isExist:
    # Create a new directory because it does not exist
    os.makedirs(path)
 
-logging.basicConfig(filename = f'./log/{datetime.datetime.now()}.log',
-                    level = logging.DEBUG,
-                    format = '%(asctime)s:%(levelname)s: %(message)s',
-)
- 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
-handler = logging.StreamHandler()
-handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s: %(message)s","%Y-%m-%d %H:%M:%S"))
-handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(asctime)s:%(name)s:%(levelname) - %(message)s')
 
-logger = logging.getLogger()
-logger.addHandler(handler)
+date_now = str(datetime.datetime.now())[:19].replace(' ','_')
+
+file_handler = logging.FileHandler(f'./log/{date_now}.log')
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(formatter)
+
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.DEBUG)
+console_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
