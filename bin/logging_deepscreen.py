@@ -12,7 +12,7 @@ if not isExist:
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S') 
+formatter = logging.Formatter('%(asctime)s:%(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S') 
 
 date_now = str(datetime.datetime.now())[:19].replace(' ','_')
 
