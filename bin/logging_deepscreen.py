@@ -19,5 +19,5 @@ handler = logging.StreamHandler()
 handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s: %(message)s","%Y-%m-%d %H:%M:%S"))
 handler.setLevel(logging.DEBUG)
 
-logger = logging.getLogger('general')
+logger = logging.getLogger()
 logger.addHandler(handler)
