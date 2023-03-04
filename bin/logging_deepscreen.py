@@ -2,9 +2,6 @@ import logging
 import datetime
 
 import os
-
-
-import os
 path = "./log"
 # Check whether the specified path exists or not
 isExist = os.path.exists(path)
