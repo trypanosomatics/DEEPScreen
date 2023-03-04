@@ -550,7 +550,9 @@ class trainer:
                 self.db.add_trained_model(target,training_matrix_path,test_values)
             
             if plot_epoch_loss:
-                epoch_vs_loss.plot(kind='line',x='epoch',y='loss')
+                plot = epoch_vs_loss.plot(kind='line',x='epoch',y='loss')
+                figure = plot.get_figure()
+                figure.savefig(os.path.join(result_path,f'{target}_epoch_loss.png'))
 
         
         logger.debug(f'Training of {targets} succeded')
