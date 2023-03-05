@@ -12,7 +12,7 @@ if not isExist:
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(asctime)s:%(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S') 
+formatter = logging.Formatter('%(asctime)s:'+'%(levelname)s'.rjust(8) + ' - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 date_now = str(datetime.datetime.now())[:19].replace(' ','_')
 
@@ -24,6 +24,11 @@ console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.DEBUG)
 console_handler.setFormatter(formatter)
 
+
+if (logger.hasHandlers()):
+    logger.handlers.clear()
+
+logger.propagate = False
+    
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
-
