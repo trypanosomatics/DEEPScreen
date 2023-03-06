@@ -14,6 +14,8 @@ from rdkit.Chem.Draw import MolDrawOptions
 import random
 from train_deepscreen import calculate_val_test_loss
 from evaluation_metrics import prec_rec_f1_acc_mcc, get_list_of_scores
+from io import BytesIO
+import sqlalchemy
 
 RANDOM_STATE = 123
 
@@ -279,7 +281,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
     best_val_test_performance_dict = dict()
     best_val_test_performance_dict["MCC"] = 0.0
 
-    loss_vs_epoch = pd.DataFrame(columns=['epoch','loss'])
+    loss_vs_epoch = pd.DataFrame(columns=['epoch','training','validation','test'])
 
     logger.info('starting training')
     for epoch in range(n_epoch):
@@ -310,7 +312,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
             loss.backward()
             optimizer.step()
         logger.debug(f"Epoch {epoch} training loss: {total_training_loss}")
-        loss_vs_epoch.loc[epoch] = (epoch,total_training_loss)
+
         training_perf_dict = dict()
         try:
             training_perf_dict = prec_rec_f1_acc_mcc(all_training_labels, all_training_preds)
@@ -349,6 +351,9 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
                     experiment_name, epoch, val_perf_dict, test_perf_dict,
                     model, target_id, str_arguments,
                     all_test_comp_ids, all_test_labels, test_predictions)
+        
+        loss_vs_epoch.loc[epoch] = (epoch,total_training_loss,total_val_loss,total_test_loss)
+
 
         if epoch == n_epoch - 1:
             score_list = get_list_of_scores()
@@ -359,122 +364,118 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
             best_val_test_result_fl.close()
             best_val_test_prediction_fl.close()
         
-    return output_pth_file, best_test_performance_dict, loss_vs_epoch
+    return output_pth_file, best_test_performance_dict, loss_vs_epoch, model
 
 class deepscreen_db:
-    def __init__(self,db_path:str, logger):
-        self.logger = logger
-
-        import sqlite3
+    def __init__(self, db_path: str):
         try:
-            self.con = sqlite3.connect(db_path)
+            self.engine = sqlalchemy.create_engine(f'sqlite:///{db_path}')
         except Exception as exp:
-            self.logger.error(f'Unable to conect to deepscreen db\n{exp}')
-        self.cur = self.con.cursor()
+            logger.error(f'Unable to connect to deepscreen db\n{exp}')
+        
         self._check_create_table()
-    
-    def get_trained_models(self):
-        trained_models = self.cur.execute('''
-        SELECT target_id FROM trained_models
-        ''').fetchall()
-        trained_models_plain_list = [tup[0] for tup in trained_models]
-        self.logger.debug(f'Trained models queried from db {trained_models_plain_list[:3]}... total trained = {len(trained_models)}')
-  
-        return trained_models_plain_list
-    
-    def add_trained_model(self,target_id,trained_model_matrix_path,test_values_dict:dict):
-        data = [target_id,
-                trained_model_matrix_path, 
-                test_values_dict['Precision'],
-                test_values_dict['Recall'],
-                test_values_dict['F1-Score'],
-                test_values_dict['Accuracy'],
-                test_values_dict['MCC'],
-                int(test_values_dict['TP']),
-                int(test_values_dict['FP']),
-                int(test_values_dict['TN']),
-                int(test_values_dict['FN']),
-                ]
-        self.logger.debug(f'Trained model results to be stored in db: {test_values_dict}')
-        try:
-            self.cur.execute('''
-            INSERT INTO trained_models (target_id,
-                trained_model_matrix_path, 
-                precision,
-                recall,
-                f1_score,
-                accuracy,
-                mcc,
-                true_positive,
-                false_positive,
-                true_negative,
-                false_negative)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?);
-            ''', data)
-            self.con.commit()
-            return True
-        except Exception as exp:
-            self.logger.error(f'Unable to write trained model in db\nFollowing exeption raised{exp}')
-            return False
 
     def _check_create_table(self):
-        tables_raw = self.cur.execute("SELECT name FROM sqlite_master WHERE type='table';").fetchall()
-        if len(tables_raw) > 0:
-            tables = tables_raw[0]
-        
-            if not 'trained_models' in tables:
-                self.logger.debug('trained_models table unexistent')
-                self.cur.execute('''
-                CREATE TABLE trained_models (
-                    target_id VARCHAR(255),
-                    trained_model_matrix MEDIUMBLOB,
-                    trained_model_matrix_path MEDIUMTEXT,
-                    precision FLOAT(255,10),
-                    recall FLOAT(255,10),
-                    f1_score FLOAT(255,10),
-                    accuracy FLOAT(255,10),
-                    mcc FLOAT(255,10),
-                    true_positive INT(255),
-                    false_positive INT(255),
-                    true_negative INT(255),
-                    false_negative INT(255)
-                );
+        if 'trained_models' not in sqlalchemy.inspect(self.engine).get_table_names():
+            try:
+                table_query = '''
+                    CREATE TABLE trained_models (
+                        target_id VARCHAR(255),
+                        trained_model_matrix MEDIUMBLOB,
+                        trained_model_matrix_path MEDIUMTEXT,
+                        precision FLOAT(255,10),
+                        recall FLOAT(255,10),
+                        f1_score FLOAT(255,10),
+                        accuracy FLOAT(255,10),
+                        mcc FLOAT(255,10),
+                        true_positive INT(255),
+                        false_positive INT(255),
+                        true_negative INT(255),
+                        false_negative INT(255),
+                        fully_layer_1 INT(255),
+                        fully_layer_2 INT(255),
+                        learning_rate FLOAT(255,10),
+                        batch_size INT(255),
+                        drop_rate FLOAT(255,10),
+                        n_epoch INT(255),
+                        epoch_vs_loss TEXT
+                    );
                 '''
-                )
-                tables_raw = self.cur.execute("SELECT name FROM sqlite_master WHERE type='table';").fetchall()
-                tables = tables_raw[0]
-                self.logger.debug('trained_models table created')
-                self.logger.debug(f'tables in db: {tables}')
-
+                with self.engine.connect() as conn:
+                    conn.execute(table_query)
+                logger.debug('trained_models table created')
+            except Exception as exp:
+                logger.error(f'Unable to create trained_models table in db\n{exp}')
         else:
-            self.logger.debug('trained_models table unexistent')
-            self.cur.execute('''
-            CREATE TABLE trained_models (
-                target_id VARCHAR(255),
-                trained_model_matrix MEDIUMBLOB,
-                trained_model_matrix_path MEDIUMTEXT,
-                precision FLOAT(255,10),
-                recall FLOAT(255,10),
-                f1_score FLOAT(255,10),
-                accuracy FLOAT(255,10),
-                mcc FLOAT(255,10),
-                true_positive INT(255),
-                false_positive INT(255),
-                true_negative INT(255),
-                false_negative INT(255)
-            );
-            '''
-            )
-            tables_raw = self.cur.execute("SELECT name FROM sqlite_master WHERE type='table';").fetchall()
-            tables = tables_raw[0]
-            self.logger.debug('trained_models table created')
-            self.logger.debug(f'tables in db: {tables}')
+            logger.debug('trained_models table already exists')
+
+
+class deepscreen_db_train(deepscreen_db):
+
+    def should_train_model(self, target: str, fully_layer_1: int, fully_layer_2: int, learning_rate: float, batch_size: int, drop_rate: float, n_epoch: int) -> bool:
+        try:
+            query = f"SELECT target_id FROM trained_models WHERE target_id = '{target}' AND fully_layer_1 = {fully_layer_1} AND fully_layer_2 = {fully_layer_2} AND learning_rate = {learning_rate} AND batch_size = {batch_size} AND drop_rate = {drop_rate} AND n_epoch = {n_epoch}"
+            result = pd.read_sql(query, self.engine)
+            if len(result) > 0:
+                logger.info(f"Model with target {target} and hyperparameters: fully_layer_1={fully_layer_1}, fully_layer_2={fully_layer_2}, learning_rate={learning_rate}, batch_size={batch_size}, drop_rate={drop_rate}, n_epoch={n_epoch} has already been trained and stored in the database.")
+                return False
+            else:
+                logger.info(f"No trained model with target {target} and hyperparameters: fully_layer_1={fully_layer_1}, fully_layer_2={fully_layer_2}, learning_rate={learning_rate}, batch_size={batch_size}, drop_rate={drop_rate}, n_epoch={n_epoch} found in the database. Training new model.")
+                return True
+        except Exception as exp:
+            logger.error(f'Error while querying trained models from db\n{exp}')
+            return True
+
+    def add_trained_model(self, target_id, trained_model, trained_model_matrix_path, test_values_dict: dict, hyperparameters_dict: dict, epoch_vs_loss: pd.DataFrame):
+
+        # Convert the PyTorch model to bytes
+        model_bytes = BytesIO()
+        torch.save(trained_model, model_bytes)
+
+        data = {
+            'target_id': target_id,
+            'trained_model_matrix': model_bytes.getvalue(),
+            'trained_model_matrix_path': trained_model_matrix_path, 
+            'precision': test_values_dict['Precision'],
+            'recall': test_values_dict['Recall'],
+            'f1_score': test_values_dict['F1-Score'],
+            'accuracy': test_values_dict['Accuracy'],
+            'mcc': test_values_dict['MCC'],
+            'true_positive': int(test_values_dict['TP']),
+            'false_positive': int(test_values_dict['FP']),
+            'true_negative': int(test_values_dict['TN']),
+            'learning_rate': hyperparameters_dict['learning_rate'],
+            'batch_size': hyperparameters_dict['batch_size'],
+            'drop_rate': hyperparameters_dict['drop_rate'],
+            'n_epoch': hyperparameters_dict['n_epoch'],
+            'epoch_vs_loss': epoch_vs_loss.to_json()
+        }
+        logger.debug(f'Trained model results to be stored in db: {test_values_dict}, Hyperparameters to be stored in db: {hyperparameters_dict}')
+        try:
+            pd.DataFrame(data, index=[0]).to_sql('trained_models', self.engine, if_exists='append', index=False)
+            return True
+        except Exception as exp:
+            logger.error(f'Unable to write trained model in db\nFollowing exeption raised{exp}')
+            return False
+
+class deepscreen_db_read(deepscreen_db):
+
+    def get_trained_models(self) -> pd.DataFrame:
+        try:
+            query = "SELECT * FROM trained_models"
+            results = pd.read_sql(query, self.engine)
+            # Convert the serialized PyTorch model back to a PyTorch model
+            results['trained_model_matrix'] = results['trained_model_matrix'].apply(lambda x: torch.load(BytesIO(x)))
+            # Convert epoch_vs_loss column from JSON to DataFrame
+            results['epoch_vs_loss'] = results['epoch_vs_loss'].apply(lambda x: pd.read_json(x))
+            return results
+        except Exception as exp:
+            logger.error(f'Error while reading trained models from db\n{exp}')
+            return pd.DataFrame()
+
 
 class trainer:
-    def __init__(self, df, db_path:str):
-        self.logger = logger
-
-        self.df = self._check_correct_df(df)
+    def __init__(self, db_path:str):
 
         self._config_nn = {
             'fully_layer_1':512,
@@ -484,7 +485,7 @@ class trainer:
             'drop_rate':0.1,
             'n_epoch':200
         }
-        self.db = deepscreen_db(db_path, self.logger)
+        self.db = deepscreen_db_train(db_path)
     
     def get_config_nn(self):
         return self._config_nn
@@ -493,72 +494,78 @@ class trainer:
         
         if full_config != None:
             self._config_nn = full_config
-            self.logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
+            logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
         
         if fully_layer_1 != None:
             self._config_nn['fully_layer_1'] = fully_layer_1
-            self.logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
+            logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
 
         if fully_layer_2 != None:
             self._config_nn['fully_layer_2'] = fully_layer_2
-            self.logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
+            logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
         
         if learning_rate != None:
             self._config_nn['learning_rate'] = learning_rate
-            self.logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
+            logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
             
         if batch_size != None:
             self._config_nn['batch_size'] = batch_size
-            self.logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
+            logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
             
         if drop_rate != None:
             self._config_nn['drop_rate'] = drop_rate
-            self.logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
+            logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
             
         if n_epoch != None:
             self._config_nn['n_epoch'] = n_epoch
-            self.logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
+            logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
 
-    def train(self, result_path:str, tmp_imgs:bool=False, plot_epoch_loss:bool = False):
+    def train(self, df:pd.DataFrame, result_path:str, tmp_imgs:bool=False, plot_epoch_loss:bool = False):
 
-        targets = self._get_target_list(self.df)
+        df = self._check_correct_df(df)
+
+        targets = self._get_target_list(df)
 
         for target in targets:
-            if target in self.db.get_trained_models():
-                self.logger.info(f'{target} target skipped because it was allready processed')
+            if not self.db.should_train_model(target,**self.get_config_nn()):
+                logger.info(f'{target} target skipped because it was allready processed')
                 continue
 
             if tmp_imgs:
                 import tempfile
                 with tempfile.TemporaryDirectory(prefix=f'{target}_') as tmpdirname:
-                    self.logger.debug(f'training {target}')
-                    self.logger.debug(f'tmp images mode on. imgs temporaly stored in {tmpdirname}')
+                    logger.debug(f'training {target}')
+                    logger.debug(f'tmp images mode on. imgs temporaly stored in {tmpdirname}')
                     images = tmpdirname
                     config_nn = self.get_config_nn()
-                    df_training = self.df[['comp_id',target,'smiles']]
+                    df_training = df[['comp_id',target,'smiles']]
                     df_training = df_training.dropna(how='any')
-                    training_matrix_path, test_values, epoch_vs_loss = train(df_training,target,result_path,images,experiment_name=target,train_split_mode='train_random_split',model_name='CNNModel1',**config_nn)
-                    self.logger.debug(f'Matrix stored in {training_matrix_path}; Results values {test_values}')
-                    self.db.add_trained_model(target,training_matrix_path,test_values)
+                    training_matrix_path, test_values, epoch_vs_loss, model = train(df_training,target,result_path,images,experiment_name=target,train_split_mode='train_random_split',model_name='CNNModel1',**config_nn)
+                    logger.debug(f'Matrix stored in {training_matrix_path}; Results values {test_values}')
+                    self.db.add_trained_model(target,model,training_matrix_path,test_values,self.get_config_nn(),epoch_vs_loss)
 
             else:    
-                self.logger.debug(f'training {target}')
+                logger.debug(f'training {target}')
                 images = result_path+f'/imgs_{target}/'
-                self.logger.debug(f'molecules imgs stored in {images}')
+                logger.debug(f'molecules imgs stored in {images}')
                 config_nn = self.get_config_nn()
-                df_training = self.df[['comp_id',target,'smiles']]
+                df_training = df[['comp_id',target,'smiles']]
                 df_training = df_training.dropna(how='any')
-                training_matrix_path, test_values, epoch_vs_loss = train(df_training,target,result_path,images,experiment_name=target,train_split_mode='train_random_split',model_name='CNNModel1',**config_nn)
-                self.logger.debug(f'Matrix stored in {training_matrix_path}; Results values {test_values}')
-                self.db.add_trained_model(target,training_matrix_path,test_values)
+                training_matrix_path, test_values, epoch_vs_loss, model = train(df_training,target,result_path,images,experiment_name=target,train_split_mode='train_random_split',model_name='CNNModel1',**config_nn)
+                logger.debug(f'Matrix stored in {training_matrix_path}; Results values {test_values}')
+                self.db.add_trained_model(target,model,training_matrix_path,test_values,self.get_config_nn(),epoch_vs_loss)
             
             if plot_epoch_loss:
-                plot = epoch_vs_loss.plot(kind='line',x='epoch',y='loss')
-                figure = plot.get_figure()
-                figure.savefig(os.path.join(result_path,f'{target}_epoch_loss.png'))
+                try:
+                    plot = epoch_vs_loss.plot(kind='line',x='epoch')
+                    figure = plot.get_figure()
+                    figure.savefig(os.path.join(result_path,f'{target}_epoch_loss.png'))
+                except Exception as e:
+                    logger.error('Unable to plot epoch vs loss because of the following error: {e}')
+                    logger.debug('epoch vs loss data it is stored in the db')
 
         
-        self.logger.debug(f'Training of {targets} succeded')
+        logger.debug(f'Training of {targets} succeded')
         return True
 
     def _get_target_list(self, df):
@@ -567,8 +574,8 @@ class trainer:
             targets_to_train.remove('comp_id')
             targets_to_train.remove('smiles')
         except:
-            self.logger.error('comp_id and smiles column not found')
-        self.logger.debug(f'targets for training: {targets_to_train[:3]}...(total {len(targets_to_train)})')
+            logger.error('comp_id and smiles column not found')
+        logger.debug(f'targets for training: {targets_to_train[:3]}...(total {len(targets_to_train)})')
         return targets_to_train
 
     def _check_correct_df(self,df):
@@ -578,20 +585,20 @@ class trainer:
 
         if not (('comp_id' in df_columns) or ('smiles' in df_columns)):
             error = 'Issues with the df. "comp_id" or "smiles" column missing'
-            self.logger.error(error)
+            logger.error(error)
             raise RuntimeError(error)
         
         df_columns_targets = df_columns.drop(['comp_id','smiles'])
 
         if len(df_columns_targets) < 1:
             error = 'Issues with the df. Target columns Missing'
-            self.logger.error(error)
+            logger.error(error)
             raise RuntimeError(error)
 
         dtypes = df[df_columns_targets].dtypes
         any_not_int64 = (dtypes != 'Int64').any()
         if any_not_int64:
-            self.logger.warning('There are some column with dtype diferent to "Int64. This issue is gonna get solved with convert_dtypes')
+            logger.warning('There are some column with dtype diferent to "Int64. This issue is gonna get solved with convert_dtypes')
             df = df.convert_dtypes(convert_integer=True)
         
         return df
