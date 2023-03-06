@@ -367,7 +367,34 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
     return output_pth_file, best_test_performance_dict, loss_vs_epoch, model
 
 class deepscreen_db:
+    """
+    Class to handle the deepscreen database.
+
+    Attributes:
+    -----------
+    engine : sqlalchemy.engine.Engine
+        Database connection engine.
+
+    Methods:
+    --------
+    __init__(self, db_path: str):
+        Initializes a deepscreen_db instance with a given path to a database file.
+        
+    _check_create_table(self):
+        Private method to check if the 'trained_models' table exists in the database.
+        If it does not exist, it creates the table.
+
+    """
     def __init__(self, db_path: str):
+        """
+        Initializes a deepscreen_db instance with a given path to a database file.
+        
+        Parameters:
+        ----------
+        db_path : str
+            Path to the database file.
+        
+        """
         try:
             self.engine = sqlalchemy.create_engine(f'sqlite:///{db_path}')
         except Exception as exp:
@@ -376,6 +403,11 @@ class deepscreen_db:
         self._check_create_table()
 
     def _check_create_table(self):
+        """
+        Private method to check if the 'trained_models' table exists in the database.
+        If it does not exist, it creates the table.
+
+        """
         if 'trained_models' not in sqlalchemy.inspect(self.engine).get_table_names():
             try:
                 table_query = '''
@@ -411,9 +443,30 @@ class deepscreen_db:
 
 
 class deepscreen_db_train(deepscreen_db):
+    """
+    Class to handle training results if deepscreen, storing them in a db.
+
+    Methods:
+    --------
+    should_train_model(self, target: str, fully_layer_1: int, fully_layer_2: int, learning_rate: float, batch_size: int, drop_rate: float, n_epoch: int) -> bool:
+        Check if a model with a given target and set of hyperparameters has already been trained and stored in the database.
+
+    add_trained_model(self, target_id, trained_model, trained_model_matrix_path, test_values_dict: dict, hyperparameters_dict: dict, epoch_vs_loss: pd.DataFrame):
+        Adds a trained model to the 'trained_models' table in the database.
+
+    """
 
     def should_train_model(self, target: str, fully_layer_1: int, fully_layer_2: int, learning_rate: float, batch_size: int, drop_rate: float, n_epoch: int) -> bool:
+        """
+        Check if a model with a given target and set of hyperparameters has already been trained and stored in the database.
+
+        Returns:
+        -------
+        bool
+            True if a model with the given hyperparameters has not been trained and stored in the database. False otherwise.
+    """
         try:
+            # Check if the model has already been trained and stored in the database
             query = f"SELECT target_id FROM trained_models WHERE target_id = '{target}' AND fully_layer_1 = {fully_layer_1} AND fully_layer_2 = {fully_layer_2} AND learning_rate = {learning_rate} AND batch_size = {batch_size} AND drop_rate = {drop_rate} AND n_epoch = {n_epoch}"
             result = pd.read_sql(query, self.engine)
             if len(result) > 0:
@@ -427,6 +480,29 @@ class deepscreen_db_train(deepscreen_db):
             return True
 
     def add_trained_model(self, target_id, trained_model, trained_model_matrix_path, test_values_dict: dict, hyperparameters_dict: dict, epoch_vs_loss: pd.DataFrame):
+        """
+        Adds a trained model to the 'trained_models' table in the database.
+
+        Parameters:
+        ----------
+        target_id : str
+            Target name.
+
+        trained_model :
+            Trained pytorch sequential model object.
+
+        trained_model_matrix_path : str
+            Path to the trained model matrix file.
+
+        test_values_dict : dict
+            Dictionary of test set metrics.
+
+        hyperparameters_dict : dict
+            Dictionary of model hyperparameters.
+
+        epoch_vs_loss : pandas.DataFrame
+            DataFrame containing epoch-wise loss values.
+        """
 
         # Convert the PyTorch model to bytes
         model_bytes = BytesIO()
@@ -475,6 +551,38 @@ class deepscreen_db_read(deepscreen_db):
 
 
 class trainer:
+    """
+    A class to train models using the deepscreen neural networks
+
+    Parameters:
+    -----------
+    db_path: str
+        The path to the database that contains the trained models, or where the models will be stored.
+
+    Attributes:
+    -----------
+
+    db: deepscreen_db_train
+        An instance of the deepscreen_db_train class that represents the database.
+
+    Methods:
+    --------
+    get_config_nn():
+        Returns the current neural network configuration.
+
+    change_config_nn(full_config=None, fully_layer_1=None, fully_layer_2=None,
+                      learning_rate=None, batch_size=None, drop_rate=None, n_epoch=None):
+        Changes the configuration of the neural network by setting the corresponding hyperparameters.
+        If full_config is not None, it should be a dictionary that contains all the hyperparameters.
+        Otherwise, only the hyperparameters that are not None are updated.
+
+    train(df, result_path, tmp_imgs=False, plot_epoch_loss=False):
+        Trains the models for all the targets in the input dataframe.
+        If tmp_imgs is True, the molecule images are temporarily stored in a directory, which is deleted after training.
+        If plot_epoch_loss is True, the epoch vs. loss plot is saved in the results directory.
+        Returns True if training is successful.
+    
+    """
     def __init__(self, db_path:str):
 
         self._config_nn = {
@@ -488,10 +596,36 @@ class trainer:
         self.db = deepscreen_db_train(db_path)
     
     def get_config_nn(self):
+        """
+        Returns a dictionary the current configuration of the neural network.
+        """
         return self._config_nn
     
     def change_config_nn(self, full_config:dict=None, fully_layer_1:int=None,  fully_layer_2:int=None, learning_rate:float=None, batch_size:int=None, drop_rate:float=None, n_epoch:int=None):
-        
+        """
+        Changes the configuration of the neural network by setting the corresponding hyperparameters.
+
+        Parameters:
+        -----------
+        full_config: dict, optional (default=None)
+            A dictionary that contains all the hyperparameters.
+        fully_layer_1: int, optional (default=None)
+            The number of neurons in the first fully connected layer.
+        fully_layer_2: int, optional (default=None)
+            The number of neurons in the second fully connected layer.
+        learning_rate: float, optional (default=None)
+            The learning rate of the optimizer.
+        batch_size: int, optional (default=None)
+            The batch size to be used during training.
+        drop_rate: float, optional (default=None)
+            The rate of the dropout layer.
+        n_epoch: int, optional (default=None)
+            The number of epochs to train the model for.
+
+        Returns:
+        --------
+        None.
+        """
         if full_config != None:
             self._config_nn = full_config
             logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
@@ -521,7 +655,30 @@ class trainer:
             logger.debug(f'Neural Network config parameters changed to {self._config_nn}')
 
     def train(self, df:pd.DataFrame, result_path:str, tmp_imgs:bool=False, plot_epoch_loss:bool = False):
+        """
+        Trains the models for all the targets in the input dataframe.
 
+        Parameters:
+        -----------
+        df: pd.DataFrame
+            The dataframe that contains the training data. Following this format:
+                e.g.
+            ------------------------------------------------------------------------------
+                     comp_id  CHEMBL286                                             smiles
+            0  CHEMBL1644461          1  CC(C)[C@H](C[C@H](O)[C@H](COCc1ccccc1)NC(=O)c1...
+            1   CHEMBL339114          1  CC(C)(C)OC(=O)NC(Cc1ccccc1)C(=O)N[C@H]1CCC(=O)...
+            2  CHEMBL3401538          1  COCCCOc1cc(C(=O)N(C[C@@H]2CNC[C@H]2NS(=O)(=O)c...
+            3  CHEMBL1825183          1  Cc1c(F)cccc1Cc1c(C(=O)N2CCNCC2)c2ccncc2n1-c1cc...
+            4   CHEMBL584509          0  NC1=N[C@@](c2ccc(OC(F)(F)F)cc2)(c2cccc(-c3cccn...
+                         ...        ...                                                ... 
+            ------------------------------------------------------------------------------
+        result_path: str
+            The path to the directory where the results of the training will be saved.
+        tmp_imgs: bool, optional (default=False)
+            Whether to store the molecule images temporarily in a directory that is deleted after training.
+        plot_epoch_loss: bool, optional (default=False)
+            Whether to save the epoch vs. loss plot in the results directory.
+        """
         df = self._check_correct_df(df)
 
         targets = self._get_target_list(df)
@@ -569,6 +726,9 @@ class trainer:
         return True
 
     def _get_target_list(self, df):
+        '''
+        Returns a list of targets to train by removing the 'comp_id' and 'smiles' columns from the input dataframe.
+        '''
         targets_to_train = df.columns.to_list()
         try:
             targets_to_train.remove('comp_id')
@@ -579,6 +739,9 @@ class trainer:
         return targets_to_train
 
     def _check_correct_df(self,df):
+        '''
+        Checks if the input dataframe is correctly formatted for training. Raises a RuntimeError if there is an issue.
+        '''
         df = df.copy()
 
         df_columns = df.columns
