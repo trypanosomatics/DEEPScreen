@@ -716,7 +716,7 @@ class trainer:
                 try:
                     plot = epoch_vs_loss.plot(kind='line',x='epoch')
                     figure = plot.get_figure()
-                    figure.savefig(os.path.join(result_path,'experiments','plots',f'{target}.png'))
+                    figure.savefig(os.path.join(result_path,'expermients',target,f'{target}.png'))
                 except Exception as e:
                     logger.error('Unable to plot epoch vs loss because of the following error: {e}')
                     logger.debug('epoch vs loss data it is stored in the db')
