@@ -123,8 +123,8 @@ class DEEPScreenDatasetPredict(Dataset):
 def save_best_model_predictions(output_trained_model_path, experiment_name, epoch, validation_scores_dict, test_scores_dict, model, target_id, str_arguments,
                                                                                    all_test_comp_ids, test_labels, test_predictions):
 
-    if not os.path.exists(os.path.join(output_trained_model_path, experiment_name)):
-        os.makedirs(os.path.join(output_trained_model_path, experiment_name))
+    if not os.path.exists(output_trained_model_path):
+        os.makedirs(output_trained_model_path)
 
     output_file = "{}/{}_best_val-{}-state_dict.pth".format(output_trained_model_path,
                                                                                target_id, str_arguments)
@@ -347,7 +347,7 @@ def train(training_df:pd.DataFrame, target_id:str, result_files_path:str, tmp_fi
                 best_val_mcc_score = val_perf_dict["MCC"]
                 best_test_mcc_score = test_perf_dict["MCC"]
 
-                validation_scores_dict, best_test_performance_dict, best_test_predictions, str_test_predictions, output_pth_file = save_best_model_predictions(os.path.join(result_files_path, "experiments"),
+                validation_scores_dict, best_test_performance_dict, best_test_predictions, str_test_predictions, output_pth_file = save_best_model_predictions(exp_path,
                     experiment_name, epoch, val_perf_dict, test_perf_dict,
                     model, target_id, str_arguments,
                     all_test_comp_ids, all_test_labels, test_predictions)
@@ -716,7 +716,7 @@ class trainer:
                 try:
                     plot = epoch_vs_loss.plot(kind='line',x='epoch')
                     figure = plot.get_figure()
-                    figure.savefig(os.path.join(result_path,f'{target}_epoch_loss.png'))
+                    figure.savefig(os.path.join(result_path,'experiments','plots',f'{target}.png'))
                 except Exception as e:
                     logger.error('Unable to plot epoch vs loss because of the following error: {e}')
                     logger.debug('epoch vs loss data it is stored in the db')
